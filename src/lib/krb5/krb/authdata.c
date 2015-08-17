@@ -536,6 +536,43 @@ k5_get_kdc_issued_authdata(krb5_context kcontext,
     return code;
 }
 
+static krb5_error_code
+k5_get_cammac_authdata(krb5_context kcontext,
+                       const krb5_ap_req *ap_req,
+                       krb5_authdata ***cammac_authdata)
+{
+    krb5_error_code code;
+    krb5_authdata **authdata;
+    krb5_authdata **ticket_authdata;
+
+    *kdc_issuer = NULL;
+    *kdc_issued_authdata = NULL;
+
+    ticket_authdata = ap_req->ticket->enc_part2->authorization_data;
+
+    code = krb5_find_authdata(kcontext, ticket_authdata, NULL,
+                              KRB5_AUTHDATA_CAMMAC, &authdata);
+    if (code != 0 || authdata == NULL)
+        return code;
+
+    /*
+     * Note: a module must still implement a verify_authdata
+     * method, even it is a NOOP that simply records the value
+     * of the kdc_issued_flag.
+     */
+    code = krb5_verify_authdata_kdc_issued(kcontext,
+                                           ap_req->ticket->enc_part2->session,
+                                           authdata[0],
+                                           kdc_issuer,
+                                           kdc_issued_authdata);
+
+    assert(code == 0 || *kdc_issued_authdata == NULL);
+
+    krb5_free_authdata(kcontext, authdata);
+
+    return code;
+}
+
 krb5_error_code
 krb5int_authdata_verify(krb5_context kcontext,
                         krb5_authdata_context context,
@@ -550,11 +587,13 @@ krb5int_authdata_verify(krb5_context kcontext,
     krb5_authdata **ticket_authdata;
     krb5_principal kdc_issuer = NULL;
     krb5_authdata **kdc_issued_authdata = NULL;
+    krb5_authdata **cammac_authdata = NULL;
 
     authen_authdata = (*auth_context)->authentp->authorization_data;
     ticket_authdata = ap_req->ticket->enc_part2->authorization_data;
     k5_get_kdc_issued_authdata(kcontext, ap_req,
                                &kdc_issuer, &kdc_issued_authdata);
+    k5_get_cammac_authdata(kcontext, ap_req, &cammac_authdata);
 
     for (i = 0; i < context->n_modules; i++) {
         struct _krb5_authdata_context_module *module = &context->modules[i];

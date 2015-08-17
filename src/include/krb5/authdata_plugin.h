@@ -57,6 +57,7 @@ typedef krb5_error_code
 #define AD_USAGE_KDC_ISSUED     0x08
 #define AD_USAGE_MASK           0x0F
 #define AD_INFORMATIONAL        0x10
+#define AD_CAMMAC_PROTECTED     0x20
 
 struct _krb5_authdata_context;
 
